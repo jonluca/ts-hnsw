@@ -1,0 +1,75 @@
+{
+  "name": "ts-hnsw",
+  "version": "0.0.0-development",
+  "license": "MIT",
+  "author": "Jonluca DeCaro <hartoopenapi@jonlu.ca>",
+  "description": "Typescript implementation of HNSW vector search",
+  "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "keywords": [
+    "hnsw",
+    "vector",
+    "index",
+    "ai",
+    "embeddings"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jonluca/ts-hnsw.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jonluca/ts-hnsw/issues"
+  },
+  "homepage": "https://github.com/jonluca/ts-hnsw",
+  "scripts": {
+    "prepublishOnly": "yarn build",
+    "lint": "eslint src",
+    "build": "rm -fr dist/* && tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "prettier": "prettier --write \"**/*.+(js|jsx|ts|tsx|har||json|css|md)\"",
+    "test": "vitest --coverage",
+    "test:update": "vitest -u",
+    "test:watch": "vitest -w"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/eslint": "8.37.0",
+    "@types/lodash": "^4.14.194",
+    "@types/node": "^18.16.1",
+    "@typescript-eslint/eslint-plugin": "^5.59.1",
+    "@typescript-eslint/eslint-plugin-tslint": "^5.59.1",
+    "@typescript-eslint/parser": "^5.59.1",
+    "@vitest/coverage-c8": "^0.30.1",
+    "c8": "^7.13.0",
+    "eslint": "^8.39.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-unused-imports": "^2.0.0",
+    "lint-staged": "^13.2.2",
+    "prettier": "^2.8.8",
+    "typescript": "5.0.4",
+    "vitest": "^0.30.1"
+  },
+  "lint-staged": {
+    "**/*.{js,ts,jsx,tsx}": [
+      "eslint --cache --fix"
+    ],
+    "**/*.{js,ts,jsx,tsx,json,md}": [
+      "prettier --write"
+    ]
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
+  }
+}
