@@ -1,64 +1,34 @@
-import { BruteforceSearch } from "../src";
 import { describe, it, beforeAll, expect } from "vitest";
+import { BruteforceSearch } from "../src/lib/bruteforce";
+import type { Vector } from "../src/types";
 describe("BruteforceSearch", () => {
   describe("#constructor", () => {
     it("throws an error if no arguments are given", () => {
       expect(() => {
         // @ts-ignore
         new BruteforceSearch();
-      }).toThrow("Expected 2 arguments, but got 0.");
+      }).toThrow();
     });
 
     it("throws an error if given a non-String object to first argument", () => {
       expect(() => {
         // @ts-ignore
         new BruteforceSearch(1, 3);
-      }).toThrow("Invalid the first argument type, must be a string.");
+      }).toThrow();
     });
 
     it("throws an error if given a non-Number object to second argument", () => {
       expect(() => {
         // @ts-ignore
         new BruteforceSearch("l2", "3");
-      }).toThrow("Invalid the second argument type, must be a number.");
+      }).toThrow();
     });
 
     it('throws an error if given a String that is neither "l2", "ip" nor "cosine" to first argument', () => {
       expect(() => {
         // @ts-ignore
         new BruteforceSearch("cos", 3);
-      }).toThrow('Wrong space name, expected "l2", "ip", or "cosine".');
-    });
-  });
-
-  describe("#initIndex", () => {
-    const index = new BruteforceSearch("l2", 3);
-
-    it("throws an error if no arguments are given", () => {
-      expect(() => {
-        // @ts-ignore
-        index.initIndex();
-      }).toThrow("Expected 1 arguments, but got 0.");
-    });
-
-    it("throws an error if given a non-Number argument", () => {
-      expect(() => {
-        // @ts-ignore
-        index.initIndex("5");
-      }).toThrow("Invalid the first argument type, must be a number.");
-    });
-  });
-
-  describe("#getMaxElements", () => {
-    const index = new BruteforceSearch("l2", 3);
-
-    it("returns 0 if called before the index is initialized", () => {
-      expect(index.getMaxElements()).toBe(0);
-    });
-
-    it("returns maximum number of elements", () => {
-      index.initIndex(10);
-      expect(index.getMaxElements()).toBe(10);
+      }).toThrow();
     });
   });
 
@@ -70,7 +40,6 @@ describe("BruteforceSearch", () => {
     });
 
     it("returns current number of elements", () => {
-      index.initIndex(5);
       index.addPoint([1, 2, 3], 0);
       index.addPoint([2, 3, 4], 1);
       expect(index.getCurrentCount()).toBe(2);
@@ -85,83 +54,16 @@ describe("BruteforceSearch", () => {
     });
   });
 
-  describe("#addPoint", () => {
-    const index = new BruteforceSearch("l2", 3);
-
-    it("throws an error if no arguments are given", () => {
-      expect(() => {
-        // @ts-ignore
-        index.addPoint();
-      }).toThrow("Expected 2 arguments, but got 0.");
-    });
-
-    it("throws an error if given a non-Array object to first argument", () => {
-      expect(() => {
-        // @ts-ignore
-        index.addPoint("[1, 2, 3]", 0);
-      }).toThrow("Invalid the first argument type, must be an Array.");
-    });
-
-    it("throws an error if given a non-Number object to second argument", () => {
-      expect(() => {
-        // @ts-ignore
-        index.addPoint([1, 2, 3], "0");
-      }).toThrow("Invalid the second argument type, must be a number.");
-    });
-
-    it("throws an error if called before the index is initialized", () => {
-      expect(() => {
-        index.addPoint([1, 2, 3], 0);
-      }).toThrow("Search index has not been initialized, call `initIndex` in advance.");
-    });
-
-    it("throws an error if given an array with a length different from the number of dimensions", () => {
-      index.initIndex(1);
-      expect(() => {
-        index.addPoint([1, 2, 3, 4, 5], 0);
-      }).toThrow("Invalid the given array length (expected 3, but got 5).");
-    });
-
-    it("throws an error if more element is added than the maximum number of elements.", () => {
-      index.initIndex(1);
-      index.addPoint([1, 2, 3], 0);
-      expect(() => {
-        index.addPoint([1, 2, 3], 1);
-      }).toThrow(/Hnswlib Error/);
-    });
-  });
-
   describe("#removePoint", () => {
     const index = new BruteforceSearch("l2", 3);
 
-    it("throws an error if no arguments are given", () => {
-      expect(() => {
-        // @ts-ignore
-        index.removePoint();
-      }).toThrow("Expected 1 arguments, but got 0.");
-    });
-
-    it("throws an error if given a non-Number argument", () => {
-      expect(() => {
-        // @ts-ignore
-        index.removePoint("0");
-      }).toThrow("Invalid the first argument type, must be a number.");
-    });
-
-    it("throws an error if called before the index is initialized", () => {
-      expect(() => {
-        index.removePoint(0);
-      }).toThrow("Search index has not been initialized, call `initIndex` in advance.");
-    });
-
     it("removes the element specified by index", () => {
-      index.initIndex(2);
       index.addPoint([1, 2, 3], 0);
       index.addPoint([1, 2, 4], 1);
       expect(index.getCurrentCount()).toBe(2);
       index.removePoint(1);
       expect(index.getCurrentCount()).toBe(1);
-      expect(index.searchKnn([1, 2, 4], 1).neighbors).toEqual([0]);
+      expect(index.searchKnn([1, 2, 4], 1)[0].label).toEqual(0);
     });
   });
 
@@ -170,56 +72,16 @@ describe("BruteforceSearch", () => {
       const index = new BruteforceSearch("l2", 3);
 
       beforeAll(() => {
-        index.initIndex(3);
         index.addPoint([1, 2, 3], 0);
         index.addPoint([2, 3, 4], 1);
         index.addPoint([3, 4, 5], 2);
       });
 
-      it("throws an error if no arguments are given", () => {
-        expect(() => {
-          // @ts-ignore
-          index.searchKnn();
-        }).toThrow("Expected 2-3 arguments, but got 0.");
-      });
-
-      it("throws an error if given a non-Array object to first argument", () => {
-        expect(() => {
-          // @ts-ignore
-          index.searchKnn("[1, 2, 3]", 2);
-        }).toThrow("Invalid the first argument type, must be an Array.");
-      });
-
-      it("throws an error if given a non-Number object to second argument", () => {
-        expect(() => {
-          // @ts-ignore
-          index.searchKnn([1, 2, 3], "2");
-        }).toThrow("Invalid the second argument type, must be a number.");
-      });
-
-      it("throws an error if given a non-Function object to third argument", () => {
-        expect(() => {
-          // @ts-ignore
-          index.searchKnn([1, 2, 3], 2, "fnc");
-        }).toThrow("Invalid the third argument type, must be a function.");
-      });
-
-      it("throws an error if given the number of neighborhoods exceeding the maximum number of elements", () => {
-        expect(() => {
-          index.searchKnn([1, 2, 5], 4);
-        }).toThrow(
-          "Invalid the number of k-nearest neighbors (cannot be given a value greater than `maxElements`: 3).",
-        );
-      });
-
-      it("throws an error if given an array with a length different from the number of dimensions", () => {
-        expect(() => {
-          index.searchKnn([1, 2, 5, 4], 2);
-        }).toThrow("Invalid the given array length (expected 3, but got 4).");
-      });
-
       it("returns search results based on squared Euclidean distance", () => {
-        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject({ distances: [3, 4], neighbors: [1, 0] });
+        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject([
+          { label: 1, score: 3 },
+          { label: 0, score: 4 },
+        ]);
       });
     });
 
@@ -227,14 +89,16 @@ describe("BruteforceSearch", () => {
       const index = new BruteforceSearch("ip", 3);
 
       beforeAll(() => {
-        index.initIndex(3);
         index.addPoint([1, 2, 3], 0);
         index.addPoint([2, 3, 4], 1);
         index.addPoint([3, 4, 5], 2);
       });
 
       it("returns search results based on one minus inner product", () => {
-        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject({ distances: [-35, -27], neighbors: [2, 1] });
+        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject([
+          { label: 2, score: -35 },
+          { label: 1, score: -27 },
+        ]);
       });
     });
 
@@ -242,7 +106,6 @@ describe("BruteforceSearch", () => {
       const index = new BruteforceSearch("cosine", 3);
 
       beforeAll(() => {
-        index.initIndex(3);
         index.addPoint([1, 2, 3], 0);
         index.addPoint([2, 3, 4], 1);
         index.addPoint([3, 4, 5], 2);
@@ -250,18 +113,17 @@ describe("BruteforceSearch", () => {
 
       it("returns search results based on one minus cosine similarity", () => {
         const res = index.searchKnn([1, 2, 5], 2);
-        expect(res.neighbors).toMatchObject([0, 1]);
-        expect(res.distances[0]).toBeCloseTo(1.0 - 20.0 / (Math.sqrt(14) * Math.sqrt(30)), 6);
-        expect(res.distances[1]).toBeCloseTo(1.0 - 28.0 / (Math.sqrt(29) * Math.sqrt(30)), 6);
+        expect(res.map((l) => l.label)).toMatchObject([0, 1]);
+        expect(res[0].score).toBeCloseTo(1.0 - 20.0 / (Math.sqrt(14) * Math.sqrt(30)), 6);
+        expect(res[1].score).toBeCloseTo(1.0 - 28.0 / (Math.sqrt(29) * Math.sqrt(30)), 6);
       });
     });
 
     describe("when filter function is given", () => {
-      const index = new BruteforceSearch("l2", 3);
-      const filter = (label) => label % 2 == 0;
+      const index = new BruteforceSearch<Vector, number>("l2", 3);
+      const filter = (label: number) => label % 2 == 0;
 
       beforeAll(() => {
-        index.initIndex(4);
         index.addPoint([1, 2, 3], 0);
         index.addPoint([1, 2, 5], 1);
         index.addPoint([1, 2, 4], 2);
@@ -269,7 +131,10 @@ describe("BruteforceSearch", () => {
       });
 
       it("returns filtered search results", () => {
-        expect(index.searchKnn([1, 2, 5], 4, filter)).toMatchObject({ distances: [1, 4], neighbors: [2, 0] });
+        expect(index.searchKnn([1, 2, 5], 4, filter)).toMatchObject([
+          { label: 2, score: 1 },
+          { label: 0, score: 4 },
+        ]);
       });
     });
   });

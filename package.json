@@ -36,6 +36,7 @@
     "test:watch": "vitest -w"
   },
   "dependencies": {
+    "async-mutex": "^0.4.0",
     "lodash": "^4.17.21",
     "uuid": "^9.0.0"
   },

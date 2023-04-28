@@ -49,11 +49,11 @@ export class HierarchicalNSW<dist_t> implements AlgorithmInterface<dist_t> {
   constructor(space?: SpaceInterface<dist_t>) {}
 
   init(
-    space: SpaceInterface<dist_t>, 
-    max_elements: number, 
-    M = 16, 
-    ef_construction = 200, 
-    random_seed = 100, 
+    space: SpaceInterface<dist_t>,
+    max_elements: number,
+    M = 16,
+    ef_construction = 200,
+    random_seed = 100,
     allow_replace_deleted = false
   ) {
     this.label_op_locks_ = Array.from({ length: HierarchicalNSW.MAX_LABEL_OPERATION_LOCKS }, () => new Mutex());
@@ -244,7 +244,7 @@ export class HNSW {
                 }
             }
         }
-      
+
         const topCandidates = this.searchBaseLayerST<false, true>(currObj, queryData, Math.max(this.ef, k), filterFunc);
 
         while (topCandidates.length > k) {
