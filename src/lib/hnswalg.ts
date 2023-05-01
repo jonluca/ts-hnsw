@@ -1,17 +1,17 @@
 import { FastPriorityQueue } from "./fpq";
 import type { Vector } from "../types";
 import type { AlgorithmInterface } from "./hnswlib";
-import type { VectorLabelType } from "./hnswlib"; // Install via: npm install fastpriorityqueue
+import type { VectorLabelType } from "./hnswlib";
+import type { SpaceName } from "../index";
+import { BaseAlgorithm } from "./baseAlgorithm"; // Install via: npm install fastpriorityqueue
 
-type DistanceFunction = <T extends Vector>(a: T, b: T) => number;
-
-class Node<T extends Vector> {
+class Node<T extends Vector = Vector, LabelType extends VectorLabelType = VectorLabelType> {
   vector: T;
   level: number;
-  label: VectorLabelType;
-  neighbors: Node<T>[][];
+  label: LabelType;
+  neighbors: Node<T, LabelType>[][];
 
-  constructor(point: T, label: VectorLabelType, level: number) {
+  constructor(point: T, label: LabelType, level: number) {
     this.vector = point;
     this.level = level;
     this.label = label;
@@ -22,18 +22,46 @@ class Node<T extends Vector> {
   }
 }
 
-export class HNSW<T extends Vector> implements AlgorithmInterface<T> {
-  private distanceFunction: DistanceFunction;
-  private entryPoint: Node<T> | null;
+export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType = VectorLabelType>
+  extends BaseAlgorithm
+  implements AlgorithmInterface<T>
+{
+  private entryPoint: Node<T, LabelType> | null;
   private maxLevel: number;
   private M: number;
   private ef: number;
+  private count: number;
 
-  constructor(distanceFunction: DistanceFunction, M = 16, ef = 50) {
-    this.distanceFunction = distanceFunction;
+  private nodeList = new Map<LabelType, T>();
+  constructor(spaceName: SpaceName, numDimensions: number, M = 16, ef = 10) {
+    super(spaceName, numDimensions);
     this.entryPoint = null;
     this.maxLevel = 0;
     this.M = M;
+    this.count = 0;
+    this.ef = ef;
+  }
+
+  getEf(): number {
+    return this.ef;
+  }
+
+  getCurrentCount(): number {
+    return this.count;
+  }
+
+  getPoint(label: LabelType): T | undefined {
+    return this.nodeList.get(label);
+  }
+
+  getIdsList(): LabelType[] {
+    return Array.from(this.nodeList.keys());
+  }
+
+  setEf(ef: number): void {
+    if (!ef || typeof ef !== "number" || ef < 0) {
+      throw new Error(`ef must be a positive number, got ${ef}`);
+    }
     this.ef = ef;
   }
 
@@ -45,10 +73,12 @@ export class HNSW<T extends Vector> implements AlgorithmInterface<T> {
     return level;
   }
 
-  addPoint(point: T, label: VectorLabelType): void {
+  addPoint(point: T, label: LabelType): void {
     const level = this.getRandomLevel();
-    const newNode = new Node<T>(point, label, level);
+    const newNode = new Node<T, LabelType>(point, label, level);
 
+    this.nodeList.set(label, point);
+    this.count++;
     if (this.entryPoint === null) {
       this.entryPoint = newNode;
       this.maxLevel = level;
@@ -62,29 +92,30 @@ export class HNSW<T extends Vector> implements AlgorithmInterface<T> {
     }
   }
 
-  private insert(closestNode: Node<T>, newNode: Node<T>): void {
+  private insert(closestNode: Node<T, LabelType>, newNode: Node<T, LabelType>): void {
     for (let level = newNode.level; level >= 0; level--) {
       const neighbors = this.searchNeighbors(closestNode, newNode.vector, this.ef, level);
       this.link(neighbors, newNode, level);
     }
   }
 
-  private link(neighbors: Node<T>[], newNode: Node<T>, level: number): void {
-    neighbors.sort(
-      (a, b) => this.distanceFunction(a.vector, newNode.vector) - this.distanceFunction(b.vector, newNode.vector),
-    );
+  private link(neighbors: Node<T, LabelType>[], newNode: Node<T, LabelType>, level: number): void {
+    const distFunc = this.getDistanceFunction();
+
+    neighbors.sort((a, b) => distFunc(a.vector, newNode.vector) - distFunc(b.vector, newNode.vector));
     newNode.neighbors[level] = neighbors.slice(0, this.M);
   }
 
-  private searchLayer(queryPoint: Vector, level: number, entryPoint: Node<T>): Node<T> {
+  private searchLayer(queryPoint: Vector, level: number, entryPoint: Node<T, LabelType>): Node<T, LabelType> {
     let currentNode = entryPoint;
 
+    const distFunc = this.getDistanceFunction();
     while (level >= 0) {
-      let nextNode: Node<T> | null = null;
+      let nextNode: Node<T, LabelType> | null = null;
       let bestDist = Infinity;
 
       for (const neighbor of currentNode.neighbors[level]) {
-        const dist = this.distanceFunction(queryPoint, neighbor.vector);
+        const dist = distFunc(queryPoint, neighbor.vector);
         if (dist < bestDist) {
           nextNode = neighbor;
           bestDist = dist;
@@ -101,13 +132,20 @@ export class HNSW<T extends Vector> implements AlgorithmInterface<T> {
     return currentNode;
   }
 
-  private searchNeighbors(closestNode: Node<T>, queryPoint: T, ef: number, level: number): Node<T>[] {
-    const visited = new Set<Node<T>>();
-    const result = new FastPriorityQueue<Node<T>>(
-      (a, b) => this.distanceFunction(a.vector, queryPoint) < this.distanceFunction(b.vector, queryPoint),
+  private searchNeighbors(
+    closestNode: Node<T, LabelType>,
+    queryPoint: T,
+    ef: number,
+    level: number,
+  ): Node<T, LabelType>[] {
+    const distFunc = this.getDistanceFunction();
+
+    const visited = new Set<Node<T, LabelType>>();
+    const result = new FastPriorityQueue<Node<T, LabelType>>(
+      (a, b) => distFunc(a.vector, queryPoint) < distFunc(b.vector, queryPoint),
     );
-    const candidateQueue = new FastPriorityQueue<Node<T>>(
-      (a, b) => this.distanceFunction(b.vector, queryPoint) < this.distanceFunction(a.vector, queryPoint),
+    const candidateQueue = new FastPriorityQueue<Node<T, LabelType>>(
+      (a, b) => distFunc(b.vector, queryPoint) < distFunc(a.vector, queryPoint),
     );
 
     visited.add(closestNode);
@@ -120,8 +158,8 @@ export class HNSW<T extends Vector> implements AlgorithmInterface<T> {
       for (const neighbor of candidate.neighbors[level]) {
         if (!visited.has(neighbor)) {
           visited.add(neighbor);
-          const distToNeighbor = this.distanceFunction(neighbor.vector, queryPoint);
-          if (result.size < ef || distToNeighbor < this.distanceFunction(result.peek()!.vector, queryPoint)) {
+          const distToNeighbor = distFunc(neighbor.vector, queryPoint);
+          if (result.size < ef || distToNeighbor < distFunc(result.peek()!.vector, queryPoint)) {
             candidateQueue.add(neighbor);
             result.add(neighbor);
           }
@@ -132,16 +170,22 @@ export class HNSW<T extends Vector> implements AlgorithmInterface<T> {
     return result.array;
   }
 
-  searchKnn(queryPoint: T, k: number) {
+  searchKnn(queryPoint: T, k: number, filter?: (label: LabelType) => boolean) {
     if (!this.entryPoint) {
       return [];
     }
+    const distFunc = this.getDistanceFunction();
+
     const closestNode = this.searchLayer(queryPoint, this.maxLevel, this.entryPoint);
-    const neighbors = this.searchNeighbors(closestNode, queryPoint, this.ef, 0);
-    neighbors.sort((a, b) => this.distanceFunction(a.vector, queryPoint) - this.distanceFunction(b.vector, queryPoint));
-    return neighbors.slice(0, k).map((l) => ({
+    let neighbors = this.searchNeighbors(closestNode, queryPoint, this.ef, 0);
+    neighbors.sort((a, b) => distFunc(a.vector, queryPoint) - distFunc(b.vector, queryPoint));
+    if (filter) {
+      neighbors = neighbors.filter((l) => filter(l.label));
+    }
+    neighbors = neighbors.slice(0, k);
+    return neighbors.map((l) => ({
       label: l.label,
-      score: this.distanceFunction(l.vector, queryPoint),
+      score: distFunc(l.vector, queryPoint),
     }));
   }
 

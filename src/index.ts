@@ -6,3 +6,4 @@ export * from "./lib/hnswlib";
 export * from "./lib/space_cosine";
 export * from "./lib/space_l2";
 export * from "./lib/space_ip";
+export { BaseAlgorithm } from "./lib/baseAlgorithm";

@@ -1,35 +1,19 @@
-import type { SpaceInterface, AlgorithmInterface } from "./hnswlib";
+import type { AlgorithmInterface } from "./hnswlib";
 import type { VectorLabelType } from "./hnswlib";
 import type { Vector } from "../types";
 import type { SpaceName } from "../index";
-import { InnerProductSpace, L2Space } from "./hnswlib";
 import FastPriorityQueue from "./fpq";
-import { CosineSpace } from "./space_cosine";
+import { BaseAlgorithm } from "./baseAlgorithm";
 
 export class BruteforceSearch<T extends Vector = Vector, LabelType extends VectorLabelType = VectorLabelType>
+  extends BaseAlgorithm
   implements AlgorithmInterface<T, LabelType>
 {
   private data: Map<LabelType, T>;
-  private space: SpaceInterface;
 
   constructor(spaceName: SpaceName, numDimensions: number) {
-    if (!spaceName || !numDimensions) {
-      throw new Error("Space name and number of dimensions required");
-    }
+    super(spaceName, numDimensions);
 
-    if (Number.isNaN(numDimensions) || typeof numDimensions !== "number") {
-      throw new Error("Number of dimensions must be a number");
-    }
-    if (spaceName !== "l2" && spaceName !== "ip" && spaceName !== "cosine") {
-      throw new Error("Space name must be either 'l2' or 'ip'");
-    }
-    if (spaceName === "l2") {
-      this.space = new L2Space(numDimensions);
-    } else if (spaceName === "cosine") {
-      this.space = new CosineSpace(numDimensions);
-    } else {
-      this.space = new InnerProductSpace(numDimensions);
-    }
     this.data = new Map<LabelType, T>();
   }
 
