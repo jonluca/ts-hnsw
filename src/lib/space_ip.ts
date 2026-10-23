@@ -1,4 +1,3 @@
-import { validateDimensions, validateDistance } from "./validation";
 import type { Vector } from "../types";
 import type { DistFunc } from "../types";
 
@@ -7,18 +6,8 @@ export class InnerProductSpace {
   private dim: number;
 
   constructor(dim: number) {
-    validateDimensions(dim, arguments.length);
     this.dim = dim;
     this.data_size = dim;
-  }
-
-  getNumDimensions(): number {
-    return this.dim;
-  }
-
-  distance(first: Vector, second: Vector): number {
-    validateDistance(first, second, this.dim, arguments.length);
-    return InnerProductSpace.innerProductDistance(first, second);
   }
 
   getDataSize(): number {

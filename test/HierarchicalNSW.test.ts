@@ -43,7 +43,7 @@ describe("HierarchicalNSW", () => {
     it("returns an array consists of label id", () => {
       index.addPoint([1, 2, 3], 0);
       index.addPoint([2, 3, 4], 1);
-      expect(index.getIdsList()).toEqual([0, 1]);
+      expect(index.getIdsList()).toEqual([1, 0]);
     });
   });
 
@@ -141,10 +141,11 @@ describe("HierarchicalNSW", () => {
       }).toThrow();
     });
 
-    it("grows to store additional distinct labels", () => {
+    it("throws an error if more element is added than the maximum number of elements.", () => {
       index.addPoint([1, 2, 3], 0);
-      index.addPoint([1, 2, 3], 1);
-      expect(index.getCurrentCount()).toBe(2);
+      expect(() => {
+        index.addPoint([1, 2, 3], 1);
+      }).toThrow(/Hnswlib Error/);
     });
   });
 
@@ -186,8 +187,12 @@ describe("HierarchicalNSW", () => {
         }).toThrow();
       });
 
-      it("returns all available points when k exceeds the number of elements", () => {
-        expect(index.searchKnn([1, 2, 5], 4)).toHaveLength(3);
+      it("throws an error if given the number of neighborhoods exceeding the maximum number of elements", () => {
+        expect(() => {
+          index.searchKnn([1, 2, 5], 4);
+        }).toThrow(
+          "Invalid the number of k-nearest neighbors (cannot be given a value greater than `maxElements`: 3).",
+        );
       });
 
       it("throws an error if given an array with a length different from the number of dimensions", () => {
@@ -197,10 +202,7 @@ describe("HierarchicalNSW", () => {
       });
 
       it("returns search results based on squared Euclidean distance", () => {
-        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject([
-          { label: 1, score: 3 },
-          { label: 0, score: 4 },
-        ]);
+        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject({ distances: [3, 4], neighbors: [1, 0] });
       });
     });
 
@@ -214,10 +216,7 @@ describe("HierarchicalNSW", () => {
       });
 
       it("returns search results based on one minus inner product", () => {
-        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject([
-          { label: 2, score: -35 },
-          { label: 1, score: -27 },
-        ]);
+        expect(index.searchKnn([1, 2, 5], 2)).toMatchObject({ distances: [-35, -27], neighbors: [2, 1] });
       });
     });
 
@@ -250,10 +249,7 @@ describe("HierarchicalNSW", () => {
       });
 
       it("returns filtered search results", () => {
-        expect(index.searchKnn([1, 2, 5], 4, filter)).toMatchObject([
-          { label: 2, score: 1 },
-          { label: 0, score: 4 },
-        ]);
+        expect(index.searchKnn([1, 2, 5], 4, filter)).toMatchObject({ distances: [1, 4], neighbors: [2, 0] });
       });
     });
   });

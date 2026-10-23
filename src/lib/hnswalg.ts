@@ -1,4 +1,3 @@
-import { validateVector } from "./validation";
 import { FastPriorityQueue } from "./fpq";
 import type { Vector } from "../types";
 import type { AlgorithmInterface } from "./hnswlib";
@@ -38,12 +37,6 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
     super(spaceName, numDimensions);
     this.entryPoint = null;
     this.maxLevel = 0;
-    if (!Number.isInteger(M) || M < 2) {
-      throw new Error("M must be an integer greater than one.");
-    }
-    if (!Number.isInteger(ef) || ef <= 0) {
-      throw new Error("ef must be a positive integer.");
-    }
     this.M = M;
     this.count = 0;
     this.ef = ef;
@@ -66,7 +59,7 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
   }
 
   setEf(ef: number): void {
-    if (!Number.isInteger(ef) || ef <= 0) {
+    if (!ef || typeof ef !== "number" || ef < 0) {
       throw new Error(`ef must be a positive number, got ${ef}`);
     }
     this.ef = ef;
@@ -81,11 +74,6 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
   }
 
   addPoint(point: T, label: LabelType): void {
-    validateVector(point, this.getNumDimensions());
-    if (typeof label !== "string" && (typeof label !== "number" || !Number.isFinite(label))) {
-      throw new Error("A string or finite number label is required.");
-    }
-    if (this.nodeList.has(label)) {throw new Error("A point with this label already exists.");}
     const level = this.getRandomLevel();
     const newNode = new Node<T, LabelType>(point, label, level);
 
@@ -97,41 +85,35 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
       return;
     }
 
-    let closestNode = this.entryPoint;
-    for (let layer = this.maxLevel; layer > level; layer--) {
-      closestNode = this.searchLayer(point, layer, closestNode);
-    }
-    for (let layer = Math.min(level, this.maxLevel); layer >= 0; layer--) {
-      const neighbors = this.searchNeighbors(closestNode, point, this.ef, layer);
-      this.link(neighbors, newNode, layer);
-      if (newNode.neighbors[layer].length) {closestNode = newNode.neighbors[layer][0];}
-    }
+    const closestNode = this.searchLayer(point, this.maxLevel, this.entryPoint);
+    this.insert(closestNode, newNode);
     if (level > this.maxLevel) {
-      this.entryPoint = newNode;
       this.maxLevel = level;
+    }
+  }
+
+  private insert(closestNode: Node<T, LabelType>, newNode: Node<T, LabelType>): void {
+    for (let level = newNode.level; level >= 0; level--) {
+      const neighbors = this.searchNeighbors(closestNode, newNode.vector, this.ef, level);
+      this.link(neighbors, newNode, level);
     }
   }
 
   private link(neighbors: Node<T, LabelType>[], newNode: Node<T, LabelType>, level: number): void {
     const distFunc = this.getDistanceFunction();
+
     neighbors.sort((a, b) => distFunc(a.vector, newNode.vector) - distFunc(b.vector, newNode.vector));
     newNode.neighbors[level] = neighbors.slice(0, this.M);
-    for (const neighbor of newNode.neighbors[level]) {
-      neighbor.neighbors[level].push(newNode);
-      neighbor.neighbors[level].sort(
-        (a, b) => distFunc(a.vector, neighbor.vector) - distFunc(b.vector, neighbor.vector),
-      );
-      neighbor.neighbors[level] = neighbor.neighbors[level].slice(0, this.M);
-    }
   }
 
   private searchLayer(queryPoint: Vector, level: number, entryPoint: Node<T, LabelType>): Node<T, LabelType> {
     let currentNode = entryPoint;
+
     const distFunc = this.getDistanceFunction();
-    let bestDist = distFunc(queryPoint, currentNode.vector);
-    let searching = true;
-    while (searching) {
-      let nextNode = currentNode;
+    while (level >= 0) {
+      let nextNode: Node<T, LabelType> | null = null;
+      let bestDist = Infinity;
+
       for (const neighbor of currentNode.neighbors[level]) {
         const dist = distFunc(queryPoint, neighbor.vector);
         if (dist < bestDist) {
@@ -139,9 +121,14 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
           bestDist = dist;
         }
       }
-      searching = nextNode !== currentNode;
-      currentNode = nextNode;
+
+      if (nextNode) {
+        currentNode = nextNode;
+      } else {
+        level--;
+      }
     }
+
     return currentNode;
   }
 
@@ -155,10 +142,10 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
 
     const visited = new Set<Node<T, LabelType>>();
     const result = new FastPriorityQueue<Node<T, LabelType>>(
-      (a, b) => distFunc(a.vector, queryPoint) > distFunc(b.vector, queryPoint),
+      (a, b) => distFunc(a.vector, queryPoint) < distFunc(b.vector, queryPoint),
     );
     const candidateQueue = new FastPriorityQueue<Node<T, LabelType>>(
-      (a, b) => distFunc(a.vector, queryPoint) < distFunc(b.vector, queryPoint),
+      (a, b) => distFunc(b.vector, queryPoint) < distFunc(a.vector, queryPoint),
     );
 
     visited.add(closestNode);
@@ -167,8 +154,6 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
 
     while (!candidateQueue.isEmpty()) {
       const candidate = candidateQueue.poll()!;
-      if (result.size >= ef && distFunc(candidate.vector, queryPoint) > distFunc(result.peek()!.vector, queryPoint))
-        {break;}
 
       for (const neighbor of candidate.neighbors[level]) {
         if (!visited.has(neighbor)) {
@@ -177,29 +162,22 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
           if (result.size < ef || distToNeighbor < distFunc(result.peek()!.vector, queryPoint)) {
             candidateQueue.add(neighbor);
             result.add(neighbor);
-            if (result.size > ef) {result.poll();}
           }
         }
       }
     }
 
-    return result.array.slice(0, result.size);
+    return result.array;
   }
 
   searchKnn(queryPoint: T, k: number, filter?: (label: LabelType) => boolean) {
-    validateVector(queryPoint, this.getNumDimensions());
-    if (!Number.isInteger(k) || k <= 0) {throw new Error("k must be a positive integer.");}
-    if (filter !== undefined && typeof filter !== "function") {throw new Error("Filter must be a function.");}
     if (!this.entryPoint) {
       return [];
     }
     const distFunc = this.getDistanceFunction();
 
-    let closestNode = this.entryPoint;
-    for (let layer = this.maxLevel; layer > 0; layer--) {
-      closestNode = this.searchLayer(queryPoint, layer, closestNode);
-    }
-    let neighbors = this.searchNeighbors(closestNode, queryPoint, Math.max(this.ef, k), 0);
+    const closestNode = this.searchLayer(queryPoint, this.maxLevel, this.entryPoint);
+    let neighbors = this.searchNeighbors(closestNode, queryPoint, this.ef, 0);
     neighbors.sort((a, b) => distFunc(a.vector, queryPoint) - distFunc(b.vector, queryPoint));
     if (filter) {
       neighbors = neighbors.filter((l) => filter(l.label));

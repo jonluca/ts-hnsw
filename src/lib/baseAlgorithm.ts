@@ -1,7 +1,5 @@
 import type { DistFunc, SpaceInterface, SpaceName } from "../index";
-import { CosineSpace } from "./space_cosine";
-import { InnerProductSpace } from "./space_ip";
-import { L2Space } from "./space_l2";
+import { CosineSpace, InnerProductSpace, L2Space } from "../index";
 
 export class BaseAlgorithm {
   space: SpaceInterface;
