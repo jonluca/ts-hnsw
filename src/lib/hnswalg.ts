@@ -183,7 +183,7 @@ export class HNSW<T extends Vector = Vector, LabelType extends VectorLabelType =
       }
     }
 
-    return result.array;
+    return result.array.slice(0, result.size);
   }
 
   searchKnn(queryPoint: T, k: number, filter?: (label: LabelType) => boolean) {

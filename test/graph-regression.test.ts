@@ -23,6 +23,19 @@ describe("HNSW graph connectivity", () => {
     }
   });
 
+  it("returns only active heap entries when the search candidate limit is reached", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.75);
+    const index = new HNSW("l2", 1, 16, 10);
+    const exhaustive = new BruteforceSearch("l2", 1);
+    for (let label = 0; label < 20; label++) {
+      index.addPoint([label], label);
+      exhaustive.addPoint([label], label);
+    }
+    const results = index.searchKnn([19], 5);
+    expect(results).toEqual(exhaustive.searchKnn([19], 5));
+    expect(new Set(results.map((result) => result.label)).size).toBe(5);
+  });
+
   it("keeps the graph unchanged after a duplicate label is rejected", () => {
     const index = new HNSW("l2", 2);
     index.addPoint([1, 2], "point");
