@@ -1,3 +1,4 @@
+import { validateDimensions, validateDistance } from "./validation";
 import type { Vector } from "../types";
 import type { SpaceInterface } from "./hnswlib";
 
@@ -6,8 +7,18 @@ export class CosineSpace implements SpaceInterface {
   private readonly _dim: number;
 
   constructor(dim: number) {
+    validateDimensions(dim, arguments.length);
     this._dim = dim;
     this.dataSize = dim;
+  }
+
+  getNumDimensions(): number {
+    return this._dim;
+  }
+
+  distance(first: Vector, second: Vector): number {
+    validateDistance(first, second, this._dim, arguments.length);
+    return CosineSpace.inverseCosineSimilarity(first, second);
   }
 
   getDataSize() {
